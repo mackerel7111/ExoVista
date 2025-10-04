@@ -404,10 +404,10 @@ const ExplorationPage: React.FC<ExplorationPageProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       {/* Header */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-4">
+      <div className="absolute top-4 left-4 z-20 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-800/80 backdrop-blur-sm rounded-lg hover:bg-gray-700/80 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 bg-gray-800/90 backdrop-blur-sm rounded-lg hover:bg-gray-700/90 transition-colors text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Analysis
@@ -416,7 +416,7 @@ const ExplorationPage: React.FC<ExplorationPageProps> = ({ onBack }) => {
         <select
           value={currentPlayer}
           onChange={(e) => setCurrentPlayer(e.target.value)}
-          className="px-4 py-2 bg-gray-800/80 backdrop-blur-sm rounded-lg border border-gray-600 text-white"
+          className="px-3 py-2 bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-600 text-white text-sm"
         >
           {players.map(player => (
             <option key={player.id} value={player.id}>
@@ -427,10 +427,10 @@ const ExplorationPage: React.FC<ExplorationPageProps> = ({ onBack }) => {
 
         <button
           onClick={() => setShowTransitLearning(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600/80 backdrop-blur-sm rounded-lg hover:bg-blue-500/80 transition-colors"
+          className="flex items-center gap-2 px-3 py-2 bg-blue-600/90 backdrop-blur-sm rounded-lg hover:bg-blue-500/90 transition-colors text-sm"
         >
           <Info className="w-4 h-4" />
-          Learn About Transit Method
+          Learn Transit
         </button>
       </div>
 

@@ -150,7 +150,10 @@ const LandingPage: React.FC = () => {
               <motion.button
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/explore')}
+                onClick={() => {
+                  console.log('Navigate to explore clicked');
+                  navigate('/explore');
+                }}
                 className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black font-bold text-lg rounded-full shadow-lg hover:from-yellow-500 hover:to-yellow-600 transition-all duration-300 glow-gold"
               >
                 <Sparkles className="w-6 h-6" />
