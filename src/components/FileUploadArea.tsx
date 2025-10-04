@@ -165,6 +165,30 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
           <li>transit_depth (%)</li>
           <li>temperature (K)</li>
         </ul>
+        
+        <div className="mt-4 p-3 bg-blue-900/20 border border-blue-400/20 rounded-lg">
+          <p className="font-semibold text-blue-400 mb-2">📄 CSV File Format Example:</p>
+          <div className="bg-black/30 p-2 rounded text-xs font-mono text-green-400">
+            <div>orbital_period,transit_depth,temperature</div>
+            <div>365.25,0.01,288</div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            • First row: column headers<br/>
+            • Second row: your planet data<br/>
+            • Use commas to separate values
+          </p>
+        </div>
+        
+        <div className="mt-3 p-3 bg-green-900/20 border border-green-400/20 rounded-lg">
+          <p className="font-semibold text-green-400 mb-2">📋 JSON File Format Example:</p>
+          <div className="bg-black/30 p-2 rounded text-xs font-mono text-green-400">
+            <div>&#123;</div>
+            <div>&nbsp;&nbsp;"orbital_period": 365.25,</div>
+            <div>&nbsp;&nbsp;"transit_depth": 0.01,</div>
+            <div>&nbsp;&nbsp;"temperature": 288</div>
+            <div>&#125;</div>
+          </div>
+        </div>
       </div>
     </div>
   );

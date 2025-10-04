@@ -195,7 +195,7 @@ const PlanetUniverse: React.FC<PlanetUniverseProps> = ({
       
       {/* Enhanced Overlay UI */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-4 left-4 text-white text-sm bg-black/60 backdrop-blur-sm p-3 rounded-lg border border-white/20">
+        <div className="absolute bottom-4 left-4 text-white text-sm bg-black/80 backdrop-blur-sm p-4 rounded-lg border border-white/20 max-w-xs">
           <p className="flex items-center gap-2 font-semibold">
             🌌 Interactive Exoplanet Universe
           </p>
@@ -204,16 +204,12 @@ const PlanetUniverse: React.FC<PlanetUniverseProps> = ({
           </p>
           <div className="mt-2 space-y-1 text-xs">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-              <span>Claimable Planets</span>
+              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+              <span>Available Planets</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
-              <span>Discovered Planets</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-red-400"></div>
-              <span>Claimed Planets</span>
+              <div className="w-2 h-2 rounded-full bg-green-400"></div>
+              <span>Player Claimed</span>
             </div>
           </div>
         </div>
