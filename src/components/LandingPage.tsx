@@ -40,12 +40,33 @@ const LandingPage: React.FC = () => {
     setIsAnalyzing(true);
     
     try {
-      // FALLBACK MODE ACTIVATED - Skip backend call entirely
-      console.log('Using fallback mode - backend disabled');
+      // Try to use real ML model first
+      let analysisResult;
       
-      // Simulate analysis delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const analysisResult = generateStructuredAnalysis(data);
+      try {
+      // Option 1: Running on Railway (Uncomment below to use the actual model)
+      //const response = await fetch('https://project-production-4ed4.up.railway.app/analyze-parameters', { 
+      // may produce undesired results. Use the local server to activate fallback for testing.
+      const response = await fetch('http://localhost:8000/analyze-parameters', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          const backendResult = await response.json();
+          analysisResult = generateStructuredAnalysisFromBackend(data, backendResult);
+        } else {
+          throw new Error('Backend not available');
+        }
+      } catch (backendError) {
+        console.log('Backend not available, using mock analysis:', backendError);
+        // Fallback to mock analysis
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        analysisResult = generateStructuredAnalysis(data);
+      }
       
       // Add new star if it's a new planet discovery
       if (analysisResult.confidenceScores.confirmed < 0.6) {
