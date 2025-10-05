@@ -206,13 +206,21 @@ async def predict(file: UploadFile = File(...)):
                 status_code=400
             )
         
-        # Select and rename columns to match model expectations
+        # Select and rename columns to match model expectations with all required features
+        # Extract source information if available
+        source = df.get('Source', pd.Series(['TOI'] * len(df))).iloc[0] if 'Source' in df.columns else 'TOI'
+        
         df_model = pd.DataFrame({
             'period': df['Period'],
-            'duration': df['Duration'],
-            'transit_depth': df['Transit Depth'],
-            'planet_radius': df['Planet Radius'],
-            'stellar_radius': df['Stellar Radius']
+            'duration': df['Duration'], 
+            'depth': df['Transit Depth'],  # Model expects 'depth'
+            'radius': df['Planet Radius'],  # Model expects 'radius'
+            'stellar_radius': df['Stellar Radius'],
+            'stellar_temp': [0] * len(df),  # Default value
+            'duration_period_ratio': df['Duration'] / df['Period'],  # Calculated
+            'radius_stellar_ratio': df['Planet Radius'] / df['Stellar Radius'],  # Calculated
+            'source_K2': [1 if source == 'K2' else 0] * len(df),  # Binary encoding
+            'source_TOI': [1 if source == 'TOI' else 0] * len(df)  # Binary encoding
         })
 
         # Run inference
@@ -290,18 +298,27 @@ async def analyze_parameters(data: dict):
         
         # Create DataFrame for prediction with features matching model training
         duration_period_ratio = duration / period if period > 0 else 0
+        radius_stellar_ratio = planet_radius / stellar_radius if stellar_radius > 0 else 0
         
         df = pd.DataFrame({
             'period': [period],
             'duration': [duration],
             'depth': [transit_depth],  # Model expects 'depth' not 'transit_depth'
+            'radius': [planet_radius],  # Model expects 'radius' not 'planet_radius'
             'stellar_radius': [stellar_radius],
+            'stellar_temp': [0],  # Default value - not provided by frontend
             'duration_period_ratio': [duration_period_ratio],  # Calculated feature
-            'source_TOI': [1]  # Default value for categorical feature
+            'radius_stellar_ratio': [radius_stellar_ratio],  # Calculated feature
+            'source_K2': [0],  # Binary: default to 0 (not K2)
+            'source_TOI': [1]  # Binary: default to 1 (assume TOI)
         })
         
         # Ensure column order matches expected model input
-        expected_columns = ['period', 'duration', 'depth', 'stellar_radius', 'duration_period_ratio', 'source_TOI']
+        expected_columns = [
+            'period', 'duration', 'depth', 'radius', 'stellar_radius', 
+            'stellar_temp', 'duration_period_ratio', 'radius_stellar_ratio',
+            'source_K2', 'source_TOI'
+        ]
         df = df[expected_columns]
         
         # Run inference using the proper prediction function
