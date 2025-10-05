@@ -296,34 +296,33 @@ async def analyze_parameters(data: dict):
         if stellar_radius > 100:
             return JSONResponse(content={"error": "Stellar radius cannot exceed 100 Solar radii"}, status_code=400)
         
-        # Create DataFrame matching your original model training approach
-        # Initialize with zeros for all model columns, then fill in available values
+        # Create DataFrame with ONLY the features your model actually recognizes
+        # Based on error messages, your model only knows these features:
         
-        # Based on your CSV interface code, create input_data with all model columns
-        # We'll simulate X_combined.columns by using the known column structure
-        model_columns = [
-            'period', 'duration', 'depth', 'radius', 'stellar_radius',
-            'duration_period_ratio', 'radius_stellar_ratio', 'source_TOI', 'source_K2'
+        minimal_columns = [
+            'period', 'duration', 'depth', 'stellar_radius', 
+            'duration_period_ratio', 'source_TOI'
         ]
         
-        # Create DataFrame with all zeros (like your original code)
-        df = pd.DataFrame(columns=model_columns)
+        # Create DataFrame with only the recognized features
+        df = pd.DataFrame(columns=minimal_columns)
         df.loc[0] = 0  # Initialize with zeros
         
-        # Fill in the available values (like your CSV interface mapping)
+        # Fill in the available values (only features the model recognizes)
         df.loc[0, 'period'] = period
         df.loc[0, 'duration'] = duration  
         df.loc[0, 'depth'] = transit_depth
-        df.loc[0, 'radius'] = planet_radius
         df.loc[0, 'stellar_radius'] = stellar_radius
         
-        # Calculate derived features
+        # Calculate derived features (only the ones model recognizes)
         df.loc[0, 'duration_period_ratio'] = duration / period if period > 0 else 0
-        df.loc[0, 'radius_stellar_ratio'] = planet_radius / stellar_radius if stellar_radius > 0 else 0
         
-        # Set default source (assume TOI)
+        # Set default source (only source_TOI since model recognizes it)
         df.loc[0, 'source_TOI'] = 1
-        df.loc[0, 'source_K2'] = 0
+        
+        print(f"[DEBUG] Using minimal feature set:")
+        print(f"[DEBUG] Columns: {df.columns.tolist()}")
+        print(f"[DEBUG] Values: {df.iloc[0].tolist()}")
         
         # Run inference using the proper prediction function
         result = predict_exoplanet(model, df, label_encoder)
