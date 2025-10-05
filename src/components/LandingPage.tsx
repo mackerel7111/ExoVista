@@ -37,36 +37,258 @@ const LandingPage: React.FC = () => {
 
     setIsAnalyzing(true);
     
-    // Simulate AI analysis
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Mock analysis result
-    const mockResult = {
-      isMatch: Math.random() > 0.4,
-      matchedPlanet: "Kepler-442b",
-      database: "NASA Exoplanet Archive",
-      confidence: Math.floor(Math.random() * 30) + 70,
-      analysis: data.temperature > 200 && data.temperature < 400 && data.orbitalPeriod > 100 ? 
-        "Potentially habitable zone candidate" : "Hot Jupiter-type exoplanet"
-    };
-    
-    // Add new star if it's a new planet discovery
-    if (!mockResult.isMatch) {
-      const newStar = {
-        id: Date.now(),
-        x: Math.random() * 100,
-        y: Math.random() * 100
-      };
-      setNewStars(prev => [...prev, newStar]);
+    try {
+      // Try to use real ML model first
+      let analysisResult;
       
-      // Remove star after animation
-      setTimeout(() => {
-        setNewStars(prev => prev.filter(star => star.id !== newStar.id));
-      }, 5000);
+      try {
+        const response = await fetch('http://localhost:8000/analyze-parameters', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+          const backendResult = await response.json();
+          analysisResult = generateStructuredAnalysisFromBackend(data, backendResult);
+        } else {
+          throw new Error('Backend not available');
+        }
+      } catch (backendError) {
+        console.log('Backend not available, using mock analysis:', backendError);
+        // Fallback to mock analysis
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        analysisResult = generateStructuredAnalysis(data);
+      }
+      
+      // Add new star if it's a new planet discovery
+      if (analysisResult.confidenceScores.confirmed < 0.6) {
+        const newStar = {
+          id: Date.now(),
+          x: Math.random() * 100,
+          y: Math.random() * 100
+        };
+        setNewStars(prev => [...prev, newStar]);
+        
+        // Remove star after animation
+        setTimeout(() => {
+          setNewStars(prev => prev.filter(star => star.id !== newStar.id));
+        }, 5000);
+      }
+      
+      setAnalysisResult(analysisResult);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      // Fallback to mock analysis on any error
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const mockResult = generateStructuredAnalysis(data);
+      setAnalysisResult(mockResult);
     }
     
-    setAnalysisResult(mockResult);
     setIsAnalyzing(false);
+  };
+
+  const generateStructuredAnalysisFromBackend = (data: ExoplanetData, backendResult: any) => {
+    const { confidenceScores } = backendResult;
+    
+    // Generate interpretation based on backend scores
+    let interpretation;
+    if (confidenceScores.confirmed > 0.6) {
+      interpretation = "Highly likely a planet.";
+    } else if (confidenceScores.candidate > 0.6) {
+      interpretation = "Possible planet, requires further validation.";
+    } else if (confidenceScores.falsePositive > 0.6) {
+      interpretation = "Most likely not a planet.";
+    } else {
+      interpretation = "Uncertain outcome. Expert review recommended.";
+    }
+    
+    // Generate key features
+    const keyFeatures = [];
+    if (data.transitDepth > 0.1) {
+      keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Deep transit suggests large planet`);
+    } else if (data.transitDepth < 0.01) {
+      keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Shallow transit, possible Earth-size`);
+    } else {
+      keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Within typical planetary range`);
+    }
+    
+    if (data.orbitalPeriod < 5) {
+      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Ultra-short period planet`);
+    } else if (data.orbitalPeriod > 200) {
+      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Long-period, cooler orbit`);
+    } else {
+      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Typical hot planet period`);
+    }
+    
+    keyFeatures.push(`ML Model: ${backendResult.model_info?.model_type || 'Unknown'} → Real prediction`);
+    
+    // Generate uncertainty indicator
+    const maxScore = Math.max(confidenceScores.confirmed, confidenceScores.candidate, confidenceScores.falsePositive);
+    const uncertaintyIndicator = maxScore > 0.7 
+      ? "Model confident: probability distribution is clear."
+      : "Model uncertain: probability scores are diffuse.";
+    
+    // Generate follow-up suggestions
+    const followUp = [];
+    if (confidenceScores.confirmed > 0.6) {
+      followUp.push("Cross-check with NASA Exoplanet Archive for parameter consistency.");
+    } else if (confidenceScores.candidate > 0.6) {
+      followUp.push("Consider radial velocity follow-up for mass confirmation.");
+    } else {
+      followUp.push("Re-examine light curve for potential stellar variability.");
+    }
+    
+    if (data.temperature > 1500) {
+      followUp.push("Atmospheric characterization recommended for hot planet.");
+    } else if (data.temperature < 400) {
+      followUp.push("Investigate potential for atmospheric retention.");
+    }
+    
+    // Generate contextual placement
+    let contextualPlacement;
+    const isHotJupiter = data.temperature > 1000 && data.orbitalPeriod < 10;
+    const isHabitableZone = data.temperature > 200 && data.temperature < 400 && data.orbitalPeriod > 50;
+    
+    if (isHotJupiter) {
+      contextualPlacement = "Located in the Hot Jupiter parameter space.";
+    } else if (isHabitableZone) {
+      contextualPlacement = "Comparable to Kepler-442b in orbital characteristics.";
+    } else if (data.orbitalPeriod < 2) {
+      contextualPlacement = "Ultra-short period planet, similar to WASP-12b class.";
+    } else if (data.transitDepth < 0.01) {
+      contextualPlacement = "Small planet regime, Earth to super-Earth size range.";
+    } else {
+      contextualPlacement = "Mid-range exoplanet parameters, Neptune-class object.";
+    }
+    
+    return {
+      confidenceScores,
+      interpretation,
+      keyFeatures: keyFeatures.slice(0, 3),
+      uncertaintyIndicator,
+      followUp: followUp.slice(0, 2),
+      contextualPlacement,
+      isRealPrediction: true
+    };
+  };
+
+  const generateStructuredAnalysis = (data: ExoplanetData) => {
+    // Generate realistic confidence scores based on input parameters
+    const isHotJupiter = data.temperature > 1000 && data.orbitalPeriod < 10;
+    const isHabitableZone = data.temperature > 200 && data.temperature < 400 && data.orbitalPeriod > 50;
+    const isShortPeriod = data.orbitalPeriod < 5;
+    const isDeepTransit = data.transitDepth > 0.5;
+    
+    let confirmedScore, candidateScore, falsePositiveScore;
+    
+    if (isHotJupiter || (isDeepTransit && data.orbitalPeriod > 1)) {
+      confirmedScore = 0.65 + Math.random() * 0.25;
+      candidateScore = 0.15 + Math.random() * 0.15;
+      falsePositiveScore = 0.05 + Math.random() * 0.15;
+    } else if (isHabitableZone) {
+      confirmedScore = 0.45 + Math.random() * 0.25;
+      candidateScore = 0.35 + Math.random() * 0.25;
+      falsePositiveScore = 0.10 + Math.random() * 0.15;
+    } else if (isShortPeriod || data.transitDepth < 0.001) {
+      confirmedScore = 0.20 + Math.random() * 0.25;
+      candidateScore = 0.25 + Math.random() * 0.25;
+      falsePositiveScore = 0.35 + Math.random() * 0.30;
+    } else {
+      confirmedScore = 0.30 + Math.random() * 0.35;
+      candidateScore = 0.30 + Math.random() * 0.35;
+      falsePositiveScore = 0.20 + Math.random() * 0.25;
+    }
+    
+    // Normalize scores to sum to 1
+    const total = confirmedScore + candidateScore + falsePositiveScore;
+    confirmedScore /= total;
+    candidateScore /= total;
+    falsePositiveScore /= total;
+    
+    // Generate interpretation
+    let interpretation;
+    if (confirmedScore > 0.6) {
+      interpretation = "Highly likely a planet. Signal characteristics align with confirmed exoplanets.";
+    } else if (candidateScore > 0.6) {
+      interpretation = "Possible planet, requires further validation.";
+    } else if (falsePositiveScore > 0.6) {
+      interpretation = "Most likely not a planet.";
+    } else {
+      interpretation = "Uncertain outcome. Expert review recommended.";
+    }
+    
+    // Generate key features
+    const keyFeatures = [];
+    if (data.transitDepth > 0.1) {
+      keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Deep transit suggests large planet`);
+    } else if (data.transitDepth < 0.01) {
+      keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Shallow transit, possible Earth-size`);
+    } else {
+      keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Within typical planetary range`);
+    }
+    
+    if (data.orbitalPeriod < 5) {
+      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Ultra-short period planet`);
+    } else if (data.orbitalPeriod > 200) {
+      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Long-period, cooler orbit`);
+    } else {
+      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Typical hot planet period`);
+    }
+    
+    const snr = Math.random() > 0.5 ? "High" : "Moderate";
+    keyFeatures.push(`Signal-to-Noise: ${snr} → ${snr === "High" ? "Strong detection confidence" : "Adequate for detection"}`);
+    
+    // Generate uncertainty indicator
+    const maxScore = Math.max(confirmedScore, candidateScore, falsePositiveScore);
+    const uncertaintyIndicator = maxScore > 0.7 
+      ? "Model confident: probability distribution is clear."
+      : "Model uncertain: probability scores are diffuse.";
+    
+    // Generate follow-up suggestions
+    const followUp = [];
+    if (confirmedScore > 0.6) {
+      followUp.push("Cross-check with NASA Exoplanet Archive for parameter consistency.");
+    } else if (candidateScore > 0.6) {
+      followUp.push("Consider radial velocity follow-up for mass confirmation.");
+    } else {
+      followUp.push("Re-examine light curve for potential stellar variability.");
+    }
+    
+    if (data.temperature > 1500) {
+      followUp.push("Atmospheric characterization recommended for hot planet.");
+    } else if (data.temperature < 400) {
+      followUp.push("Investigate potential for atmospheric retention.");
+    }
+    
+    // Generate contextual placement
+    let contextualPlacement;
+    if (isHotJupiter) {
+      contextualPlacement = "Located in the Hot Jupiter parameter space.";
+    } else if (isHabitableZone) {
+      contextualPlacement = "Comparable to Kepler-442b in orbital characteristics.";
+    } else if (data.orbitalPeriod < 2) {
+      contextualPlacement = "Ultra-short period planet, similar to WASP-12b class.";
+    } else if (data.transitDepth < 0.01) {
+      contextualPlacement = "Small planet regime, Earth to super-Earth size range.";
+    } else {
+      contextualPlacement = "Mid-range exoplanet parameters, Neptune-class object.";
+    }
+    
+    return {
+      confidenceScores: {
+        confirmed: Math.round(confirmedScore * 100) / 100,
+        candidate: Math.round(candidateScore * 100) / 100,
+        falsePositive: Math.round(falsePositiveScore * 100) / 100
+      },
+      interpretation,
+      keyFeatures: keyFeatures.slice(0, 3),
+      uncertaintyIndicator,
+      followUp: followUp.slice(0, 2),
+      contextualPlacement
+    };
   };
 
   const currentData = uploadedData || manualData;
