@@ -44,6 +44,33 @@ async def health():
         "label_encoder_loaded": label_encoder is not None
     }
 
+@app.get("/info")
+async def info():
+    """Get API information and expected parameters"""
+    return {
+        "api_version": "1.0",
+        "expected_parameters": {
+            "period": "Orbital period in days (0.1 - 10,000)",
+            "duration": "Transit duration in hours (0.1 - 24)",
+            "transitDepth": "Transit depth in % (0.001 - 100)",
+            "planetRadius": "Planet radius in Earth radii (0.1 - 50)",
+            "stellarRadius": "Stellar radius in Solar radii (0.1 - 100)"
+        },
+        "csv_format": {
+            "expected_columns": ["Period", "Duration", "Transit Depth", "Planet Radius", "Stellar Radius"],
+            "example_row": "365.25,2.5,0.01,1.0,1.0,Kepler",
+            "note": "CSV can include additional columns like 'Source' - they will be ignored"
+        },
+        "endpoints": {
+            "/analyze-parameters": "POST - Analyze exoplanet parameters (JSON)",
+            "/predict": "POST - Upload CSV file for batch prediction",
+            "/upload-model": "POST - Upload ML model (.pkl)",
+            "/upload-label-encoder": "POST - Upload label encoder (.pkl)",
+            "/health": "GET - Check API health",
+            "/info": "GET - Get API information"
+        }
+    }
+
 def predict_exoplanet(model, input_data, label_encoder=None):
     """Predict exoplanet classification with proper label decoding"""
     # Make prediction
@@ -132,8 +159,28 @@ async def predict(file: UploadFile = File(...)):
         contents = await file.read()
         df = pd.read_csv(pd.io.common.BytesIO(contents))
 
+        # Expected column names for the CSV (with spaces and capitalization)
+        expected_csv_columns = ['Period', 'Duration', 'Transit Depth', 'Planet Radius', 'Stellar Radius']
+        
+        # Check if CSV has the required columns
+        missing_columns = [col for col in expected_csv_columns if col not in df.columns]
+        if missing_columns:
+            return JSONResponse(
+                content={"error": f"CSV missing required columns: {missing_columns}. Expected columns: {expected_csv_columns}"}, 
+                status_code=400
+            )
+        
+        # Select and rename columns to match model expectations
+        df_model = pd.DataFrame({
+            'period': df['Period'],
+            'duration': df['Duration'],
+            'transit_depth': df['Transit Depth'],
+            'planet_radius': df['Planet Radius'],
+            'stellar_radius': df['Stellar Radius']
+        })
+
         # Run inference
-        predictions = model.predict(df)
+        predictions = model.predict(df_model)
 
         # Return structured predictions matching frontend expectations
         # Assuming predictions is array of probabilities [confirmed, candidate, false_positive]
@@ -182,17 +229,41 @@ async def analyze_parameters(data: dict):
         return JSONResponse(content={"error": "Model not loaded. Please upload a model first."}, status_code=400)
     
     try:
-        # Extract parameters
-        orbital_period = data.get('orbitalPeriod', 0)
+        # Extract parameters (updated to match frontend)
+        period = data.get('period', 0)
+        duration = data.get('duration', 0)
         transit_depth = data.get('transitDepth', 0)
-        temperature = data.get('temperature', 0)
+        planet_radius = data.get('planetRadius', 0)
+        stellar_radius = data.get('stellarRadius', 0)
         
-        # Create DataFrame for prediction
+        # Validate parameters
+        if not all(isinstance(x, (int, float)) and x > 0 for x in [period, duration, transit_depth, planet_radius, stellar_radius]):
+            return JSONResponse(content={"error": "All parameters must be positive numbers"}, status_code=400)
+        
+        # Additional validation ranges (based on frontend constraints)
+        if period > 10000:
+            return JSONResponse(content={"error": "Orbital period cannot exceed 10,000 days"}, status_code=400)
+        if duration > 24:
+            return JSONResponse(content={"error": "Transit duration cannot exceed 24 hours"}, status_code=400)
+        if transit_depth > 100:
+            return JSONResponse(content={"error": "Transit depth cannot exceed 100%"}, status_code=400)
+        if planet_radius > 50:
+            return JSONResponse(content={"error": "Planet radius cannot exceed 50 Earth radii"}, status_code=400)
+        if stellar_radius > 100:
+            return JSONResponse(content={"error": "Stellar radius cannot exceed 100 Solar radii"}, status_code=400)
+        
+        # Create DataFrame for prediction with all 5 parameters (consistent column order)
         df = pd.DataFrame({
-            'orbital_period': [orbital_period],
-            'transit_depth': [transit_depth], 
-            'temperature': [temperature]
+            'period': [period],
+            'duration': [duration],
+            'transit_depth': [transit_depth],
+            'planet_radius': [planet_radius],
+            'stellar_radius': [stellar_radius]
         })
+        
+        # Ensure column order matches expected model input
+        expected_columns = ['period', 'duration', 'transit_depth', 'planet_radius', 'stellar_radius']
+        df = df[expected_columns]
         
         # Run inference using the proper prediction function
         result = predict_exoplanet(model, df, label_encoder)
@@ -202,9 +273,11 @@ async def analyze_parameters(data: dict):
             "prediction": result["prediction"],
             "confidenceScores": result["confidence_scores"],
             "inputParameters": {
-                "orbitalPeriod": orbital_period,
+                "period": period,
+                "duration": duration,
                 "transitDepth": transit_depth,
-                "temperature": temperature
+                "planetRadius": planet_radius,
+                "stellarRadius": stellar_radius
             },
             "rawPredictions": result["raw_predictions"],
             "model_info": {

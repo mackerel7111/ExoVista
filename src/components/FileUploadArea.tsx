@@ -3,9 +3,11 @@ import { motion } from 'framer-motion';
 import { Upload, File, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface ExoplanetData {
-  orbitalPeriod: number;
+  period: number;
+  duration: number;
   transitDepth: number;
-  temperature: number;
+  planetRadius: number;
+  stellarRadius: number;
 }
 
 interface FileUploadAreaProps {
@@ -20,17 +22,25 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
   const validateData = (data: any): ExoplanetData | null => {
     if (!data || typeof data !== 'object') return null;
     
-    const period = parseFloat(data.orbital_period || data.orbitalPeriod || data.period);
-    const depth = parseFloat(data.transit_depth || data.transitDepth || data.depth);
-    const temp = parseFloat(data.temperature || data.temp);
+    const period = parseFloat(data.Period || data.period);
+    const duration = parseFloat(data.Duration || data.duration);
+    const transitDepth = parseFloat(data['Transit Depth'] || data.transitDepth || data.transit_depth);
+    const planetRadius = parseFloat(data['Planet Radius'] || data.planetRadius || data.planet_radius);
+    const stellarRadius = parseFloat(data['Stellar Radius'] || data.stellarRadius || data.stellar_radius);
 
-    if (isNaN(period) || isNaN(depth) || isNaN(temp)) return null;
-    if (period <= 0 || depth <= 0 || temp <= 0) return null;
+    if (isNaN(period) || isNaN(duration) || isNaN(transitDepth) || isNaN(planetRadius) || isNaN(stellarRadius)) {
+      return null;
+    }
+    if (period <= 0 || duration <= 0 || transitDepth <= 0 || planetRadius <= 0 || stellarRadius <= 0) {
+      return null;
+    }
 
     return {
-      orbitalPeriod: period,
-      transitDepth: depth,
-      temperature: temp
+      period,
+      duration,
+      transitDepth,
+      planetRadius,
+      stellarRadius
     };
   };
 
@@ -42,13 +52,11 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
       const text = await file.text();
       let data;
 
-      if (file.name.endsWith('.json')) {
-        data = JSON.parse(text);
-      } else if (file.name.endsWith('.csv')) {
+      if (file.name.endsWith('.csv')) {
         const lines = text.split('\n').filter(line => line.trim());
         if (lines.length < 2) throw new Error('CSV must have header and data rows');
         
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const headers = lines[0].split(',').map(h => h.trim());
         const values = lines[1].split(',').map(v => v.trim());
         
         data = {};
@@ -56,12 +64,12 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
           data[header] = values[index];
         });
       } else {
-        throw new Error('Unsupported file format. Please use JSON or CSV.');
+        throw new Error('Only CSV files are supported. Please upload a CSV file.');
       }
 
       const validatedData = validateData(data);
       if (!validatedData) {
-        throw new Error('Invalid data format. Required fields: orbital_period, transit_depth, temperature');
+        throw new Error('Invalid data format. Required columns: Period, Duration, Transit Depth, Planet Radius, Stellar Radius');
       }
 
       onDataUpload(validatedData);
@@ -110,7 +118,7 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
       >
         <input
           type="file"
-          accept=".csv,.json"
+          accept=".csv"
           onChange={handleFileSelect}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={uploadStatus === 'processing'}
@@ -129,18 +137,18 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
           
           <div>
             {uploadStatus === 'processing' ? (
-              <p className="text-yellow-400">Processing file...</p>
+              <p className="text-yellow-400">Processing CSV file...</p>
             ) : uploadStatus === 'success' ? (
-              <p className="text-green-400">File uploaded successfully!</p>
+              <p className="text-green-400">CSV file uploaded successfully!</p>
             ) : uploadStatus === 'error' ? (
               <p className="text-red-400">Upload failed</p>
             ) : (
               <>
                 <p className="text-gray-300 font-medium">
-                  {isDragOver ? 'Drop your file here' : 'Drag & drop your data file'}
+                  {isDragOver ? 'Drop your CSV file here' : 'Drag & drop your CSV file'}
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  or click to browse (CSV, JSON)
+                  or click to browse (CSV only)
                 </p>
               </>
             )}
@@ -159,35 +167,27 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onDataUpload }) => {
       )}
 
       <div className="text-xs text-gray-500 space-y-1">
-        <p><strong>Required fields:</strong></p>
+        <p><strong>Required CSV columns:</strong></p>
         <ul className="list-disc list-inside space-y-0.5 ml-2">
-          <li>orbital_period (days)</li>
-          <li>transit_depth (%)</li>
-          <li>temperature (K)</li>
+          <li><strong>Period</strong> - Orbital period in days</li>
+          <li><strong>Duration</strong> - Transit duration in hours</li>
+          <li><strong>Transit Depth</strong> - Light blocked percentage (%)</li>
+          <li><strong>Planet Radius</strong> - Planet size in Earth radii (R⊕)</li>
+          <li><strong>Stellar Radius</strong> - Star size in Solar radii (R☉)</li>
         </ul>
         
         <div className="mt-4 p-3 bg-blue-900/20 border border-blue-400/20 rounded-lg">
           <p className="font-semibold text-blue-400 mb-2">📄 CSV File Format Example:</p>
           <div className="bg-black/30 p-2 rounded text-xs font-mono text-green-400">
-            <div>orbital_period,transit_depth,temperature</div>
-            <div>365.25,0.01,288</div>
+            <div>Period,Duration,Transit Depth,Planet Radius,Stellar Radius,Source</div>
+            <div>365.25,2.5,0.01,1.0,1.0,Kepler</div>
           </div>
           <p className="text-xs text-gray-400 mt-2">
-            • First row: column headers<br/>
+            • First row: column headers (case-sensitive)<br/>
             • Second row: your planet data<br/>
+            • Optional: Source column for metadata<br/>
             • Use commas to separate values
           </p>
-        </div>
-        
-        <div className="mt-3 p-3 bg-green-900/20 border border-green-400/20 rounded-lg">
-          <p className="font-semibold text-green-400 mb-2">📋 JSON File Format Example:</p>
-          <div className="bg-black/30 p-2 rounded text-xs font-mono text-green-400">
-            <div>&#123;</div>
-            <div>&nbsp;&nbsp;"orbital_period": 365.25,</div>
-            <div>&nbsp;&nbsp;"transit_depth": 0.01,</div>
-            <div>&nbsp;&nbsp;"temperature": 288</div>
-            <div>&#125;</div>
-          </div>
         </div>
       </div>
     </div>

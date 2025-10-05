@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, TrendingDown, Thermometer } from 'lucide-react';
+import { Clock, Timer, TrendingDown, Circle, Star } from 'lucide-react';
 
 interface ExoplanetData {
-  orbitalPeriod: number;
+  period: number;
+  duration: number;
   transitDepth: number;
-  temperature: number;
+  planetRadius: number;
+  stellarRadius: number;
 }
 
 interface ManualInputFormProps {
@@ -14,15 +16,19 @@ interface ManualInputFormProps {
 
 const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
   const [formData, setFormData] = useState({
-    orbitalPeriod: '',
+    period: '',
+    duration: '',
     transitDepth: '',
-    temperature: ''
+    planetRadius: '',
+    stellarRadius: ''
   });
 
   const [errors, setErrors] = useState({
-    orbitalPeriod: '',
+    period: '',
+    duration: '',
     transitDepth: '',
-    temperature: ''
+    planetRadius: '',
+    stellarRadius: ''
   });
 
   const validateField = (name: string, value: string) => {
@@ -33,14 +39,20 @@ const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
     }
     
     switch (name) {
-      case 'orbitalPeriod':
+      case 'period':
         if (numValue > 10000) return 'Value seems unusually high';
+        break;
+      case 'duration':
+        if (numValue > 24) return 'Duration cannot exceed 24 hours';
         break;
       case 'transitDepth':
         if (numValue > 100) return 'Transit depth cannot exceed 100%';
         break;
-      case 'temperature':
-        if (numValue > 10000) return 'Temperature seems unusually high';
+      case 'planetRadius':
+        if (numValue > 50) return 'Planet radius seems unusually large';
+        break;
+      case 'stellarRadius':
+        if (numValue > 100) return 'Stellar radius seems unusually large';
         break;
     }
     return '';
@@ -56,15 +68,18 @@ const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
   };
 
   useEffect(() => {
-    const { orbitalPeriod, transitDepth, temperature } = formData;
+    const { period, duration, transitDepth, planetRadius, stellarRadius } = formData;
     
-    if (orbitalPeriod && transitDepth && temperature && 
-        !errors.orbitalPeriod && !errors.transitDepth && !errors.temperature) {
+    if (period && duration && transitDepth && planetRadius && stellarRadius && 
+        !errors.period && !errors.duration && !errors.transitDepth && 
+        !errors.planetRadius && !errors.stellarRadius) {
       
       const data: ExoplanetData = {
-        orbitalPeriod: parseFloat(orbitalPeriod),
+        period: parseFloat(period),
+        duration: parseFloat(duration),
         transitDepth: parseFloat(transitDepth),
-        temperature: parseFloat(temperature)
+        planetRadius: parseFloat(planetRadius),
+        stellarRadius: parseFloat(stellarRadius)
       };
       
       onDataChange(data);
@@ -73,12 +88,22 @@ const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
 
   const inputFields = [
     {
-      name: 'orbitalPeriod',
+      name: 'period',
       label: 'Orbital Period',
       icon: Clock,
       placeholder: 'e.g., 365.25',
       unit: 'days',
-      color: 'text-blue-400'
+      color: 'text-blue-400',
+      description: 'Time for one complete orbit around the star'
+    },
+    {
+      name: 'duration',
+      label: 'Transit Duration',
+      icon: Timer,
+      placeholder: 'e.g., 2.5',
+      unit: 'hours',
+      color: 'text-purple-400',
+      description: 'How long the planet blocks the star\'s light'
     },
     {
       name: 'transitDepth',
@@ -86,15 +111,26 @@ const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
       icon: TrendingDown,
       placeholder: 'e.g., 0.01',
       unit: '%',
-      color: 'text-green-400'
+      color: 'text-green-400',
+      description: 'Percentage of starlight blocked during transit'
     },
     {
-      name: 'temperature',
-      label: 'Temperature',
-      icon: Thermometer,
-      placeholder: 'e.g., 288',
-      unit: 'K',
-      color: 'text-red-400'
+      name: 'planetRadius',
+      label: 'Planet Radius',
+      icon: Circle,
+      placeholder: 'e.g., 1.0',
+      unit: 'R⊕',
+      color: 'text-orange-400',
+      description: 'Planet size relative to Earth (1.0 = Earth-sized)'
+    },
+    {
+      name: 'stellarRadius',
+      label: 'Stellar Radius',
+      icon: Star,
+      placeholder: 'e.g., 1.0',
+      unit: 'R☉',
+      color: 'text-yellow-400',
+      description: 'Star size relative to our Sun (1.0 = Sun-sized)'
     }
   ];
 
@@ -112,6 +148,7 @@ const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
             <field.icon className={`w-4 h-4 ${field.color}`} />
             {field.label} ({field.unit})
           </label>
+          <p className="text-xs text-gray-500 mb-2">{field.description}</p>
           <div className="relative">
             <input
               type="number"
@@ -152,8 +189,10 @@ const ManualInputForm: React.FC<ManualInputFormProps> = ({ onDataChange }) => {
         <h4 className="text-sm font-medium text-gray-400 mb-2">Parameter Ranges</h4>
         <div className="text-xs text-gray-500 space-y-1">
           <p>• Orbital Period: 0.1 - 10,000 days</p>
+          <p>• Transit Duration: 0.1 - 24 hours</p>
           <p>• Transit Depth: 0.001% - 100%</p>
-          <p>• Temperature: 50K - 10,000K</p>
+          <p>• Planet Radius: 0.1 - 50 R⊕ (Earth radii)</p>
+          <p>• Stellar Radius: 0.1 - 100 R☉ (Solar radii)</p>
         </div>
       </div>
     </div>

@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Thermometer, Clock, TrendingDown, Sparkles, Star } from 'lucide-react';
+import { Upload, FileText, Thermometer, Clock, TrendingDown, Sparkles, Star, Timer, Circle } from 'lucide-react';
 import RotatingPlanet from './RotatingPlanet';
 import FileUploadArea from './FileUploadArea';
 import ManualInputForm from './ManualInputForm';
 import ResultDisplay from './ResultDisplay';
 
 interface ExoplanetData {
-  orbitalPeriod: number;
+  period: number;
+  duration: number;
   transitDepth: number;
-  temperature: number;
+  planetRadius: number;
+  stellarRadius: number;
 }
 
 const LandingPage: React.FC = () => {
@@ -42,8 +44,7 @@ const LandingPage: React.FC = () => {
       let analysisResult;
       
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/analyze-parameters`, {
+        const response = await fetch('http://localhost:8000/analyze-parameters', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -116,12 +117,20 @@ const LandingPage: React.FC = () => {
       keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Within typical planetary range`);
     }
     
-    if (data.orbitalPeriod < 5) {
-      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Ultra-short period planet`);
-    } else if (data.orbitalPeriod > 200) {
-      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Long-period, cooler orbit`);
+    if (data.period < 5) {
+      keyFeatures.push(`Orbital Period: ${data.period} days → Ultra-short period planet`);
+    } else if (data.period > 200) {
+      keyFeatures.push(`Orbital Period: ${data.period} days → Long-period, cooler orbit`);
     } else {
-      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Typical hot planet period`);
+      keyFeatures.push(`Orbital Period: ${data.period} days → Typical hot planet period`);
+    }
+    
+    if (data.planetRadius > 2.0) {
+      keyFeatures.push(`Planet Radius: ${data.planetRadius} R⊕ → Super-Earth or larger`);
+    } else if (data.planetRadius < 0.5) {
+      keyFeatures.push(`Planet Radius: ${data.planetRadius} R⊕ → Sub-Earth size planet`);
+    } else {
+      keyFeatures.push(`Planet Radius: ${data.planetRadius} R⊕ → Earth-like size range`);
     }
     
     keyFeatures.push(`ML Model: ${backendResult.model_info?.model_type || 'Unknown'} → Real prediction`);
@@ -136,28 +145,34 @@ const LandingPage: React.FC = () => {
     const followUp = [];
     if (confidenceScores.confirmed > 0.6) {
       followUp.push("Cross-check with NASA Exoplanet Archive for parameter consistency.");
+      followUp.push("Consider atmospheric characterization with space telescopes.");
     } else if (confidenceScores.candidate > 0.6) {
       followUp.push("Consider radial velocity follow-up for mass confirmation.");
+      followUp.push("Obtain additional transit observations for validation.");
     } else {
       followUp.push("Re-examine light curve for potential stellar variability.");
+      followUp.push("Check for systematic errors in photometry pipeline.");
     }
     
-    if (data.temperature > 1500) {
-      followUp.push("Atmospheric characterization recommended for hot planet.");
-    } else if (data.temperature < 400) {
-      followUp.push("Investigate potential for atmospheric retention.");
+    if (data.duration > 6) {
+      followUp.push("Long transit suggests distant orbit - check for additional planets.");
+    } else if (data.duration < 1) {
+      followUp.push("Short transit - verify stellar parameters and planet size.");
     }
     
     // Generate contextual placement
     let contextualPlacement;
-    const isHotJupiter = data.temperature > 1000 && data.orbitalPeriod < 10;
-    const isHabitableZone = data.temperature > 200 && data.temperature < 400 && data.orbitalPeriod > 50;
+    const isHotJupiter = data.planetRadius > 8 && data.period < 10;
+    const isHabitableZone = data.period > 50 && data.period < 400;
+    const isSuperEarth = data.planetRadius > 1.25 && data.planetRadius < 2.0;
     
     if (isHotJupiter) {
       contextualPlacement = "Located in the Hot Jupiter parameter space.";
     } else if (isHabitableZone) {
-      contextualPlacement = "Comparable to Kepler-442b in orbital characteristics.";
-    } else if (data.orbitalPeriod < 2) {
+      contextualPlacement = "Orbital period suggests potential habitable zone location.";
+    } else if (isSuperEarth) {
+      contextualPlacement = "Super-Earth size range - potentially rocky composition.";
+    } else if (data.period < 2) {
       contextualPlacement = "Ultra-short period planet, similar to WASP-12b class.";
     } else if (data.transitDepth < 0.01) {
       contextualPlacement = "Small planet regime, Earth to super-Earth size range.";
@@ -178,22 +193,23 @@ const LandingPage: React.FC = () => {
 
   const generateStructuredAnalysis = (data: ExoplanetData) => {
     // Generate realistic confidence scores based on input parameters
-    const isHotJupiter = data.temperature > 1000 && data.orbitalPeriod < 10;
-    const isHabitableZone = data.temperature > 200 && data.temperature < 400 && data.orbitalPeriod > 50;
-    const isShortPeriod = data.orbitalPeriod < 5;
+    const isHotJupiter = data.planetRadius > 8 && data.period < 10;
+    const isHabitableZone = data.period > 50 && data.period < 400;
+    const isShortPeriod = data.period < 5;
     const isDeepTransit = data.transitDepth > 0.5;
+    const isLargeRadius = data.planetRadius > 2.0;
     
     let confirmedScore, candidateScore, falsePositiveScore;
     
-    if (isHotJupiter || (isDeepTransit && data.orbitalPeriod > 1)) {
+    if (isHotJupiter || (isDeepTransit && data.period > 1)) {
       confirmedScore = 0.65 + Math.random() * 0.25;
       candidateScore = 0.15 + Math.random() * 0.15;
       falsePositiveScore = 0.05 + Math.random() * 0.15;
-    } else if (isHabitableZone) {
+    } else if (isHabitableZone && data.planetRadius < 3.0) {
       confirmedScore = 0.45 + Math.random() * 0.25;
       candidateScore = 0.35 + Math.random() * 0.25;
       falsePositiveScore = 0.10 + Math.random() * 0.15;
-    } else if (isShortPeriod || data.transitDepth < 0.001) {
+    } else if (isShortPeriod || data.transitDepth < 0.001 || data.planetRadius < 0.3) {
       confirmedScore = 0.20 + Math.random() * 0.25;
       candidateScore = 0.25 + Math.random() * 0.25;
       falsePositiveScore = 0.35 + Math.random() * 0.30;
@@ -231,16 +247,21 @@ const LandingPage: React.FC = () => {
       keyFeatures.push(`Transit Depth: ${data.transitDepth}% → Within typical planetary range`);
     }
     
-    if (data.orbitalPeriod < 5) {
-      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Ultra-short period planet`);
-    } else if (data.orbitalPeriod > 200) {
-      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Long-period, cooler orbit`);
+    if (data.period < 5) {
+      keyFeatures.push(`Orbital Period: ${data.period} days → Ultra-short period planet`);
+    } else if (data.period > 200) {
+      keyFeatures.push(`Orbital Period: ${data.period} days → Long-period, cooler orbit`);
     } else {
-      keyFeatures.push(`Orbital Period: ${data.orbitalPeriod} days → Typical hot planet period`);
+      keyFeatures.push(`Orbital Period: ${data.period} days → Typical hot planet period`);
     }
     
-    const snr = Math.random() > 0.5 ? "High" : "Moderate";
-    keyFeatures.push(`Signal-to-Noise: ${snr} → ${snr === "High" ? "Strong detection confidence" : "Adequate for detection"}`);
+    if (data.planetRadius > 2.0) {
+      keyFeatures.push(`Planet Radius: ${data.planetRadius} R⊕ → Super-Earth or larger`);
+    } else if (data.planetRadius < 0.5) {
+      keyFeatures.push(`Planet Radius: ${data.planetRadius} R⊕ → Sub-Earth size planet`);
+    } else {
+      keyFeatures.push(`Planet Radius: ${data.planetRadius} R⊕ → Earth-like size range`);
+    }
     
     // Generate uncertainty indicator
     const maxScore = Math.max(confirmedScore, candidateScore, falsePositiveScore);
@@ -252,16 +273,19 @@ const LandingPage: React.FC = () => {
     const followUp = [];
     if (confirmedScore > 0.6) {
       followUp.push("Cross-check with NASA Exoplanet Archive for parameter consistency.");
+      followUp.push("Consider atmospheric characterization with space telescopes.");
     } else if (candidateScore > 0.6) {
       followUp.push("Consider radial velocity follow-up for mass confirmation.");
+      followUp.push("Obtain additional transit observations for validation.");
     } else {
       followUp.push("Re-examine light curve for potential stellar variability.");
+      followUp.push("Check for systematic errors in photometry pipeline.");
     }
     
-    if (data.temperature > 1500) {
-      followUp.push("Atmospheric characterization recommended for hot planet.");
-    } else if (data.temperature < 400) {
-      followUp.push("Investigate potential for atmospheric retention.");
+    if (data.duration > 6) {
+      followUp.push("Long transit suggests distant orbit - check for additional planets.");
+    } else if (data.duration < 1) {
+      followUp.push("Short transit - verify stellar parameters and planet size.");
     }
     
     // Generate contextual placement
@@ -269,11 +293,13 @@ const LandingPage: React.FC = () => {
     if (isHotJupiter) {
       contextualPlacement = "Located in the Hot Jupiter parameter space.";
     } else if (isHabitableZone) {
-      contextualPlacement = "Comparable to Kepler-442b in orbital characteristics.";
-    } else if (data.orbitalPeriod < 2) {
+      contextualPlacement = "Orbital period suggests potential habitable zone location.";
+    } else if (data.period < 2) {
       contextualPlacement = "Ultra-short period planet, similar to WASP-12b class.";
     } else if (data.transitDepth < 0.01) {
       contextualPlacement = "Small planet regime, Earth to super-Earth size range.";
+    } else if (data.planetRadius > 1.25 && data.planetRadius < 2.0) {
+      contextualPlacement = "Super-Earth size range - potentially rocky composition.";
     } else {
       contextualPlacement = "Mid-range exoplanet parameters, Neptune-class object.";
     }
@@ -293,7 +319,8 @@ const LandingPage: React.FC = () => {
   };
 
   const currentData = uploadedData || manualData;
-  const canAnalyze = currentData && currentData.orbitalPeriod > 0 && currentData.transitDepth > 0 && currentData.temperature > 0;
+  const canAnalyze = currentData && currentData.period > 0 && currentData.duration > 0 && 
+                     currentData.transitDepth > 0 && currentData.planetRadius > 0 && currentData.stellarRadius > 0;
 
   return (
     <motion.div 
@@ -466,18 +493,26 @@ const LandingPage: React.FC = () => {
                     </motion.div>
                     Current Parameters
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-blue-400" />
-                      <span>Orbital Period: {currentData.orbitalPeriod} days</span>
+                      <span>Period: {currentData.period} days</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Timer className="w-4 h-4 text-purple-400" />
+                      <span>Duration: {currentData.duration} hours</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <TrendingDown className="w-4 h-4 text-green-400" />
                       <span>Transit Depth: {currentData.transitDepth}%</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Thermometer className="w-4 h-4 text-red-400" />
-                      <span>Temperature: {currentData.temperature} K</span>
+                      <Circle className="w-4 h-4 text-orange-400" />
+                      <span>Planet Radius: {currentData.planetRadius} R⊕</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-yellow-400" />
+                      <span>Stellar Radius: {currentData.stellarRadius} R☉</span>
                     </div>
                   </div>
                 </motion.div>
