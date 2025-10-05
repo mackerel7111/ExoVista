@@ -146,9 +146,29 @@ def predict_exoplanet(model, input_data, label_encoder=None):
     
     print(f"[DEBUG] Final confidence scores: {confidence_scores}")
     
+    # Convert labels to match frontend expectations (lowercase)
+    label_mapping = {
+        'CONFIRMED': 'confirmed',
+        'CANDIDATE': 'candidate', 
+        'FALSE POSITIVE': 'falsePositive'
+    }
+    
+    # Map confidence scores to frontend format
+    frontend_confidence_scores = {}
+    for label, score in confidence_scores.items():
+        frontend_label = label_mapping.get(label, label.lower())
+        frontend_confidence_scores[frontend_label] = score
+    
+    # Map prediction label to frontend format
+    frontend_prediction = label_mapping.get(predicted_label, predicted_label.lower())
+    
+    print(f"[DEBUG] Mapped to frontend format:")
+    print(f"[DEBUG] Prediction: {frontend_prediction}")
+    print(f"[DEBUG] Confidence scores: {frontend_confidence_scores}")
+    
     return {
-        "prediction": predicted_label,
-        "confidence_scores": confidence_scores,
+        "prediction": frontend_prediction,
+        "confidence_scores": frontend_confidence_scores,
         "raw_predictions": predictions.tolist() if hasattr(predictions, 'tolist') else [predictions]
     }
 
