@@ -36,6 +36,27 @@ except FileNotFoundError:
 except Exception as e:
     print(f"[ERROR] Error loading label encoder: {e}")
 
+@app.get("/")
+async def root():
+    """Welcome endpoint for ExoVista API"""
+    return {
+        "message": "Welcome to ExoVista API! 🪐",
+        "description": "Exoplanet Classification and Analysis API",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health - Check API health",
+            "docs": "/docs - Interactive API documentation", 
+            "info": "/info - Detailed API information",
+            "analyze": "/analyze-parameters - Analyze exoplanet parameters",
+            "predict": "/predict - Upload CSV for batch prediction"
+        },
+        "model_status": {
+            "model_loaded": model is not None,
+            "label_encoder_loaded": label_encoder is not None
+        }
+    }
+
 @app.get("/health")
 async def health():
     return {
