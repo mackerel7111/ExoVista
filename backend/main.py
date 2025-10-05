@@ -296,30 +296,34 @@ async def analyze_parameters(data: dict):
         if stellar_radius > 100:
             return JSONResponse(content={"error": "Stellar radius cannot exceed 100 Solar radii"}, status_code=400)
         
-        # Create DataFrame for prediction with features matching model training
-        duration_period_ratio = duration / period if period > 0 else 0
-        radius_stellar_ratio = planet_radius / stellar_radius if stellar_radius > 0 else 0
+        # Create DataFrame matching your original model training approach
+        # Initialize with zeros for all model columns, then fill in available values
         
-        df = pd.DataFrame({
-            'period': [period],
-            'duration': [duration],
-            'depth': [transit_depth],  # Model expects 'depth' not 'transit_depth'
-            'radius': [planet_radius],  # Model expects 'radius' not 'planet_radius'
-            'stellar_radius': [stellar_radius],
-            'stellar_temp': [0],  # Default value - not provided by frontend
-            'duration_period_ratio': [duration_period_ratio],  # Calculated feature
-            'radius_stellar_ratio': [radius_stellar_ratio],  # Calculated feature
-            'source_K2': [0],  # Binary: default to 0 (not K2)
-            'source_TOI': [1]  # Binary: default to 1 (assume TOI)
-        })
-        
-        # Ensure column order matches expected model input
-        expected_columns = [
-            'period', 'duration', 'depth', 'radius', 'stellar_radius', 
-            'stellar_temp', 'duration_period_ratio', 'radius_stellar_ratio',
-            'source_K2', 'source_TOI'
+        # Based on your CSV interface code, create input_data with all model columns
+        # We'll simulate X_combined.columns by using the known column structure
+        model_columns = [
+            'period', 'duration', 'depth', 'radius', 'stellar_radius',
+            'duration_period_ratio', 'radius_stellar_ratio', 'source_TOI', 'source_K2'
         ]
-        df = df[expected_columns]
+        
+        # Create DataFrame with all zeros (like your original code)
+        df = pd.DataFrame(columns=model_columns)
+        df.loc[0] = 0  # Initialize with zeros
+        
+        # Fill in the available values (like your CSV interface mapping)
+        df.loc[0, 'period'] = period
+        df.loc[0, 'duration'] = duration  
+        df.loc[0, 'depth'] = transit_depth
+        df.loc[0, 'radius'] = planet_radius
+        df.loc[0, 'stellar_radius'] = stellar_radius
+        
+        # Calculate derived features
+        df.loc[0, 'duration_period_ratio'] = duration / period if period > 0 else 0
+        df.loc[0, 'radius_stellar_ratio'] = planet_radius / stellar_radius if stellar_radius > 0 else 0
+        
+        # Set default source (assume TOI)
+        df.loc[0, 'source_TOI'] = 1
+        df.loc[0, 'source_K2'] = 0
         
         # Run inference using the proper prediction function
         result = predict_exoplanet(model, df, label_encoder)
