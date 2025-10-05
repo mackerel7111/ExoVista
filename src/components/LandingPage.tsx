@@ -42,7 +42,8 @@ const LandingPage: React.FC = () => {
       let analysisResult;
       
       try {
-        const response = await fetch('http://localhost:8000/analyze-parameters', {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiUrl}/analyze-parameters`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
