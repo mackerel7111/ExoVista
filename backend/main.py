@@ -98,6 +98,13 @@ def predict_exoplanet(model, input_data, label_encoder=None):
     predictions = model.predict(input_data)
     prediction_proba = model.predict_proba(input_data) if hasattr(model, 'predict_proba') else None
     
+    # Debug logging
+    print(f"[DEBUG] Model predictions: {predictions}")
+    print(f"[DEBUG] Prediction probabilities: {prediction_proba}")
+    print(f"[DEBUG] Prediction shape: {predictions.shape if hasattr(predictions, 'shape') else 'No shape'}")
+    if prediction_proba is not None:
+        print(f"[DEBUG] Proba shape: {prediction_proba.shape}")
+    
     # Get the predicted class
     predicted_class_index = predictions[0] if hasattr(predictions[0], '__len__') else predictions[0]
     
@@ -118,9 +125,12 @@ def predict_exoplanet(model, input_data, label_encoder=None):
         if label_encoder is not None:
             try:
                 class_labels = label_encoder.classes_
+                print(f"[DEBUG] Label encoder classes: {class_labels}")
                 for i, confidence in enumerate(prediction_proba[0]):
                     confidence_scores[class_labels[i]] = float(confidence)
-            except:
+                    print(f"[DEBUG] {class_labels[i]}: {confidence}")
+            except Exception as e:
+                print(f"[DEBUG] Label encoder error: {e}")
                 # Fallback
                 for i, confidence in enumerate(prediction_proba[0]):
                     confidence_scores[f"Class_{i}"] = float(confidence)
@@ -130,6 +140,11 @@ def predict_exoplanet(model, input_data, label_encoder=None):
             for i, confidence in enumerate(prediction_proba[0]):
                 label = default_labels[i] if i < len(default_labels) else f"Class_{i}"
                 confidence_scores[label] = float(confidence)
+                print(f"[DEBUG] {label}: {confidence}")
+    else:
+        print("[DEBUG] No prediction probabilities available")
+    
+    print(f"[DEBUG] Final confidence scores: {confidence_scores}")
     
     return {
         "prediction": predicted_label,
