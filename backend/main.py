@@ -273,17 +273,20 @@ async def analyze_parameters(data: dict):
         if stellar_radius > 100:
             return JSONResponse(content={"error": "Stellar radius cannot exceed 100 Solar radii"}, status_code=400)
         
-        # Create DataFrame for prediction with all 5 parameters (consistent column order)
+        # Create DataFrame for prediction with features matching model training
+        duration_period_ratio = duration / period if period > 0 else 0
+        
         df = pd.DataFrame({
             'period': [period],
             'duration': [duration],
-            'transit_depth': [transit_depth],
-            'planet_radius': [planet_radius],
-            'stellar_radius': [stellar_radius]
+            'depth': [transit_depth],  # Model expects 'depth' not 'transit_depth'
+            'stellar_radius': [stellar_radius],
+            'duration_period_ratio': [duration_period_ratio],  # Calculated feature
+            'source_TOI': [1]  # Default value for categorical feature
         })
         
         # Ensure column order matches expected model input
-        expected_columns = ['period', 'duration', 'transit_depth', 'planet_radius', 'stellar_radius']
+        expected_columns = ['period', 'duration', 'depth', 'stellar_radius', 'duration_period_ratio', 'source_TOI']
         df = df[expected_columns]
         
         # Run inference using the proper prediction function
