@@ -44,7 +44,10 @@ const LandingPage: React.FC = () => {
       let analysisResult;
       
       try {
-        const response = await fetch('https://project-production-4ed4.up.railway.app/analyze-parameters', {
+      // Option 1: Running on Railway (Uncomment below to use the actual model)
+      //const response = await fetch('https://project-production-4ed4.up.railway.app/analyze-parameters', { 
+      // may produce undesired results. Use the local server to activate fallback for testing.
+      const response = await fetch('http://localhost:8000/analyze-parameters', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
